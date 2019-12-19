@@ -18,7 +18,7 @@ def infogain(df,attribute,target):#df is the whole dataframe, attribute is one o
     for i in range(len(attribute_list)):
         sum=0
         for j in range(len(target_list)):
-                sum=grouped[attribute_list[i]][target_list[j]]+sum #先统计total
+                sum=grouped[attribute_list[i]][target_list[j]]+sum #count total
         info_entropy=0
         for j in range(len(target_list)):
             if grouped[attribute_list[i]][target_list[j]]!=0:
@@ -53,37 +53,24 @@ def rank_attribute(df,target):#scan all attribute
     # print(col,entropy_list)
     return max_attribute
 
-def splitdf(originaldf,attribute):
-    attribute_list = list(set(originaldf[attribute]))
-    df_dic={}
-    for i in range(len(attribute_list)):
-        newdf=originaldf[originaldf[attribute] == attribute_list[i]].reset_index(drop=True)
-        df_dic.update({'%s_%s'%(attribute,attribute_list[i]):newdf})#get split attribute and df
-    return df_dic
 
-#对给定的数据集的指定特征的分类值进行分类
+#split the dataset by value
 def splitdataset(dataset, axis, value):
     retdataset = dataset[dataset[axis] == value]
     del retdataset[axis]
     return retdataset
 
-
-def getdf_attri(df,target):
-    max_attribute=rank_attribute(df,target)
-    df_dic=splitdf(df,max_attribute)
-    return max_attribute,df_dic
-
-#确定分枝的主分类
+#determine the split attribute by majority
 def majority(labellist):
     classcount = {}
-    #分类列表中的各分类进行投票
+    #vote for each label
     for vote in labellist:
         if vote not in classcount.keys():
             classcount[vote] =0
         classcount[vote] += 1
-    #排序后选择最多票数的分类
+    #rank the class
     sortedclasscount = sorted(classcount.iteritems(), key=operator.itemgetter(1), reverse=True)
-    #返回最多票数的分类的标签
+    #return majority
     return sortedclasscount[0][0]
 
 def createtree(dataset, result):
