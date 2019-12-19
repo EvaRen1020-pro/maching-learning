@@ -4,8 +4,13 @@ import math
 import numpy as np
 import operator
 from sklearn import preprocessing
+import uuid
+import pickle
+from collections import defaultdict, namedtuple
+from sklearn.tree import export_graphviz
+import pydotplus
 
-df=pd.read_excel('decision tree-data.xlsx',sheetname='original data')
+df=pd.read_excel('\decision tree-data.xlsx',sheetname='original data')
 
 
 def infogain(df,attribute,target):#df is the whole dataframe, attribute is one of attribute name, target is target name
@@ -96,8 +101,76 @@ def createtree(dataset, result):
     return mytree
 
 
+def get_nodes_edges(tree=None, root_node=None):
+    ''' 返回树中所有节点和边
+    '''
+    Node = namedtuple('Node', ['id', 'label'])
+    Edge = namedtuple('Edge', ['start', 'end', 'label'])
+
+    if type(tree) is not dict:
+        return [], []
+    nodes, edges = [], []
+    if root_node is None:
+        label = list(tree.keys())[0]
+        root_node = Node._make([uuid.uuid4(), label])
+        nodes.append(root_node)
+    for edge_label, sub_tree in tree[root_node.label].items():
+        node_label = list(sub_tree.keys())[0] if type(sub_tree) is dict else sub_tree
+        sub_node = Node._make([uuid.uuid4(), node_label])
+        nodes.append(sub_node)
+        edge = Edge._make([root_node, sub_node, edge_label])
+        edges.append(edge)
+        sub_nodes, sub_edges = get_nodes_edges(sub_tree, root_node=sub_node)
+        nodes.extend(sub_nodes)
+        edges.extend(sub_edges)
+    return nodes, edges
+
+def dotify(tree):
+    ''' 获取树的Graphviz Dot文件的内容
+    '''
+
+    content = 'digraph decision_tree {\n'
+    nodes, edges = get_nodes_edges(tree)
+    for node in nodes:
+        content += '    "{}" [label="{}"];\n'.format(node.id, node.label)
+    for edge in edges:
+        start, label, end = edge.start, edge.label, edge.end
+        content += '    "{}" -> "{}" [label="{}"];\n'.format(start.id, end.id, label)
+    content += '}'
+    return content
+
+def load_tree(filename):
+    ''' 加载树结构
+    '''
+    with open(filename, 'rb') as f:
+        tree = pickle.load(f)
+    return tree
+
+
+def classify(data_vect, feat_names=None, tree=None):
+    ''' 根据构建的决策树对数据进行分类
+    '''
+    if tree is None:
+        tree = self.tree
+    if feat_names is None:
+        feat_names = self.feat_names
+    # Recursive base case.
+    if type(tree) is not dict:
+        return tree
+    feature = list(tree.keys())[0]
+    value = data_vect[feat_names.index(feature)]
+    sub_tree = tree[feature][value]
+    return classify(feat_names, data_vect, sub_tree)
+
+
 if __name__ == '__main__' :
     tree_list=[]#save tree
     mytree=createtree(df,'Conflict')
     print(mytree)
+    with open('\traffic conflict.dot', 'w') as f:
+        dot = dotify(mytree)
+        f.write(dot)
 
+    graph = pydotplus.graph_from_dot_data(dot)#可视化树
+    # 保存图像到pdf文件
+    graph.write_pdf("\newtraffic conflict.pdf")
